@@ -21,6 +21,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
 
 public class BypassCloudFlare {
 
@@ -114,19 +117,20 @@ public class BypassCloudFlare {
             js = js.replace("t.length", "11");
             js = js.replaceAll(System.lineSeparator(), "");
 
-            String cmd = "\"console.log(require('vm').runInNewContext(' " + js + "', Object.create(null), {timeout: 5000}));\"";
-            return round(Double.parseDouble(execCmd("node -e " + cmd).trim()));
+//            String cmd = "\"console.log(require('vm').runInNewContext(' " + js + "', Object.create(null), {timeout: 5000}));\"";
+
+            ScriptEngineManager factory = new ScriptEngineManager();
+            ScriptEngine engine = factory.getEngineByName("JavaScript");
+            
+            String response = engine.eval(js).toString();
+            Log.info("ANSWER: " + response);
+            return round(Double.parseDouble(response));
         } catch (IndexOutOfBoundsException e) {
             e.printStackTrace();
-        } catch (IOException ex) {
+        } catch (ScriptException ex) {
             Logger.getLogger(BypassCloudFlare.class.getName()).log(Level.SEVERE, null, ex);
         }
         return a;
-    }
-
-    public static String execCmd(String cmd) throws java.io.IOException {
-        java.util.Scanner s = new java.util.Scanner(Runtime.getRuntime().exec(cmd).getInputStream()).useDelimiter("\\A");
-        return s.hasNext() ? s.next() : "";
     }
 
     public static double round(double value) {
@@ -166,11 +170,6 @@ public class BypassCloudFlare {
     }
 
     public static List<String> get_matches(String s, String p) {
-        try {
-            Files.write(Paths.get("a.txt"), s.getBytes(), StandardOpenOption.CREATE);
-        } catch (IOException ex) {
-            Logger.getLogger(BypassCloudFlare.class.getName()).log(Level.SEVERE, null, ex);
-        }
         // returns all matches of p in s for first group in regular expression 
         List<String> matches = new ArrayList<String>();
         Matcher m = Pattern.compile(p).matcher(s);
