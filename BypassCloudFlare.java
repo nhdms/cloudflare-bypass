@@ -1,6 +1,5 @@
 package Util;
 
-import com.eclipsesource.v8.V8;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,16 +10,13 @@ import java.net.CookiePolicy;
 import java.net.CookieStore;
 import java.net.HttpCookie;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -65,9 +61,9 @@ public class BypassCloudFlare {
                 conn.disconnect();
 
                 str = sb.toString();
-                String jschl_vc = regex(str, "name=\"jschl_vc\" value=\"(.+?)\"").get(0);   
-                String pass = regex(str, "name=\"pass\" value=\"(.+?)\"").get(0);         
-                double jschl_answer = get_answer(str);                                      
+                String jschl_vc = regex(str, "name=\"jschl_vc\" value=\"(.+?)\"").get(0);
+                String pass = regex(str, "name=\"pass\" value=\"(.+?)\"").get(0);
+                double jschl_answer = get_answer(str);
                 Thread.sleep(4000);
 
                 String req = String.valueOf("https://" + ConnUrl.getHost()) + "/cdn-cgi/l/chk_jschl?"
@@ -109,24 +105,31 @@ public class BypassCloudFlare {
         return null;
     }
 
-    private double get_answer(String content) { 
+    private double get_answer(String content) {
         double a = 0;
         try {
             String js = get_matches(content, OPERATION_PATTERN).get(0);
             js = js.replaceAll("a\\.value = (.+ \\+ t\\.length).+", "$1");
             js = js.replaceAll("\\s{3,}[a-z](?: = |\\.).+", "");
             js = js.replace("t.length", "11");
-            js = js.replace("[\\n\\\\']", "");
+            js = js.replaceAll(System.lineSeparator(), "");
 
-            V8 v8 = V8.createV8Runtime();
-            a = v8.executeDoubleScript(js);
+            String cmd = "\"console.log(require('vm').runInNewContext(' " + js + "', Object.create(null), {timeout: 5000}));\"";
+            return round(Double.parseDouble(execCmd("node -e " + cmd).trim()));
         } catch (IndexOutOfBoundsException e) {
             e.printStackTrace();
+        } catch (IOException ex) {
+            Logger.getLogger(BypassCloudFlare.class.getName()).log(Level.SEVERE, null, ex);
         }
         return a;
     }
 
-    public static double round(double value, int places) {
+    public static String execCmd(String cmd) throws java.io.IOException {
+        java.util.Scanner s = new java.util.Scanner(Runtime.getRuntime().exec(cmd).getInputStream()).useDelimiter("\\A");
+        return s.hasNext() ? s.next() : "";
+    }
+
+    public static double round(double value) {
         DecimalFormat decim = new DecimalFormat("0.0000000000");
         return Double.parseDouble(decim.format(value));
     }
@@ -139,7 +142,7 @@ public class BypassCloudFlare {
         this.UA = UA;
     }
 
-    private List<String> regex(String text, String pattern) {  
+    private List<String> regex(String text, String pattern) {
         try {
             Pattern pt = Pattern.compile(pattern);
             Matcher mt = pt.matcher(text);
